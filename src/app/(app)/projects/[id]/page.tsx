@@ -13,6 +13,8 @@ import { WorkspaceBadge } from "@/components/workspace-badge";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TasksView } from "@/components/tasks/tasks-view";
+import { fetchTasks } from "@/lib/task-queries";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +79,7 @@ export default async function ProjectDetailPage({
     memberIds: project.members.map((m) => m.userId),
   };
 
-  const [clients, users] = await Promise.all([
+  const [clients, users, taskItems] = await Promise.all([
     prisma.client.findMany({
       where: { deletedAt: null },
       orderBy: { name: "asc" },
@@ -88,6 +90,7 @@ export default async function ProjectDetailPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    fetchTasks({ projectId: id }),
   ]);
 
   return (
@@ -291,13 +294,23 @@ export default async function ProjectDetailPage({
           </div>
         </TabsContent>
 
+        <TabsContent value="tasks" className="mt-4">
+          <TasksView
+            tasks={taskItems}
+            users={users}
+            projects={[]}
+            canEdit={!readOnly}
+            isAdmin={isAdmin}
+            fixedProjectId={project.id}
+          />
+        </TabsContent>
+
         {(
           [
-            ["tasks", "Tasks", 2],
             ["files", "Files", 4],
             ["timeline", "Timeline", 5],
             ["activity", "Activity", 6],
-            ["notes", "Notes", 2],
+            ["notes", "Notes", 6],
           ] as const
         ).map(([value, label, phase]) => (
           <TabsContent key={value} value={value} className="mt-4">
