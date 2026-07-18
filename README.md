@@ -83,7 +83,7 @@ All tokens are defined once in `globals.css` and exposed to Tailwind as
 - [x] **Phase 1 — Foundation:** auth + roles, workspace picker / theming /
       switcher, layout + collapsible sidebar, User + Client + Project CRUD,
       pipeline stages, project list + detail Overview tab
-- [ ] **Phase 2 — Tasks:** task CRUD, List + Kanban, subtasks, comments, drag-and-drop
+- [x] **Phase 2 — Tasks:** task CRUD, List + Kanban, subtasks, comments, drag-and-drop
 - [ ] **Phase 3 — My Day:** daily to-dos, Top 3, rollover, Dashboard home
 - [ ] **Phase 4 — Time & Files:** timer, time entries, uploads + versions, approvals
 - [ ] **Phase 5 — Views & Notifications:** calendar, timeline/Gantt, notifications, ⌘K search
