@@ -1,0 +1,339 @@
+// KESHV OS — Prisma schema (SPEC §3 Data Model)
+// Backed by Supabase Postgres. DATABASE_URL uses the pooled (pgbouncer)
+// connection; DIRECT_URL uses the direct connection for migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum Workspace {
+  KESHV
+  SLATE
+}
+
+enum ProjectStage {
+  ENQUIRY
+  PROPOSAL_SENT
+  WON
+  PLANNING
+  IN_PRODUCTION
+  INTERNAL_REVIEW
+  CLIENT_REVIEW
+  REVISIONS
+  FINAL_APPROVAL
+  DELIVERED
+  CLOSED
+  // Side states (not part of the linear pipeline)
+  LOST
+  ON_HOLD
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum ApprovalStatus {
+  NONE
+  PENDING
+  APPROVED
+  CHANGES
+}
+
+enum TodoBucket {
+  TODAY
+  TOMORROW
+  WEEK
+  SOMEDAY
+}
+
+// ---------------------------------------------------------------------------
+// Users & Clients
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String  @id @default(cuid())
+  name      String
+  email     String  @unique
+  role      Role    @default(MEMBER)
+  avatarUrl String?
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdProjects Project[]       @relation("ProjectCreatedBy")
+  memberships     ProjectMember[]
+  assignedTasks   Task[]          @relation("TaskAssignee")
+  comments        Comment[]
+  timeEntries     TimeEntry[]
+  uploadedFiles   File[]
+  todos           TodoItem[]
+  notifications   Notification[]
+  activityLogs    ActivityLog[]
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  workspace Workspace
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+model Project {
+  id          String       @id @default(cuid())
+  name        String
+  clientId    String?
+  workspaceId Workspace
+  serviceType String
+  stage       ProjectStage @default(ENQUIRY)
+  priority    Priority     @default(MEDIUM)
+  description String?
+
+  startDate   DateTime?
+  deadline    DateTime?
+  deliveredAt DateTime?
+
+  // Financial fields — visible to ADMIN only (enforced in the app layer)
+  budget          Decimal? @db.Decimal(12, 2)
+  advanceReceived Boolean  @default(false)
+
+  isRetainer    Boolean @default(false)
+  retainerHours Float? // monthly hours bank for retainer projects
+
+  coverColor String? // hex color for the project card
+  logoUrl    String? // optional client logo
+
+  createdById String?
+  createdBy   User?     @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  deletedAt   DateTime? // soft delete — recoverable from Trash for 30 days
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client  Client?         @relation(fields: [clientId], references: [id])
+  members ProjectMember[]
+  tasks   Task[]
+  files   File[]
+
+  @@index([workspaceId, deletedAt])
+  @@index([stage])
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (Phase 2 uses these; schema defined up-front)
+// ---------------------------------------------------------------------------
+
+model Task {
+  id          String     @id @default(cuid())
+  projectId   String? // null = standalone "Studio task"
+  title       String
+  description String? // rich text (HTML/JSON)
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  assigneeId  String?
+  dueDate     DateTime?
+  estimateHrs Float?
+  labels      String[]   @default([])
+  order       Float      @default(0) // sort order within a column/group
+  // RRULE-like string for recurring studio ops tasks (e.g. FREQ=WEEKLY)
+  recurringRule String?
+  deletedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project?  @relation(fields: [projectId], references: [id])
+  assignee  User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  subtasks  Subtask[]
+  comments  Comment[]
+  timeEntries TimeEntry[]
+  linkedTodos TodoItem[]
+
+  // Dependencies: this task is blocked by `blockedBy`, and blocks `blocking`
+  blockedBy TaskDependency[] @relation("BlockedTask")
+  blocking  TaskDependency[] @relation("BlockingTask")
+
+  @@index([projectId, status])
+  @@index([assigneeId, dueDate])
+}
+
+model Subtask {
+  id     String  @id @default(cuid())
+  taskId String
+  title  String
+  done   Boolean @default(false)
+  order  Float   @default(0)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model TaskDependency {
+  taskId      String // the task that is blocked
+  blockedById String // the task doing the blocking
+
+  task      Task @relation("BlockedTask", fields: [taskId], references: [id], onDelete: Cascade)
+  blockedBy Task @relation("BlockingTask", fields: [blockedById], references: [id], onDelete: Cascade)
+
+  @@id([taskId, blockedById])
+}
+
+model Comment {
+  id       String   @id @default(cuid())
+  taskId   String?
+  authorId String
+  body     String
+  mentions String[] @default([]) // user ids mentioned with @name
+
+  createdAt DateTime @default(now())
+
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Time tracking (Phase 4)
+// ---------------------------------------------------------------------------
+
+model TimeEntry {
+  id        String    @id @default(cuid())
+  taskId    String
+  userId    String
+  startedAt DateTime
+  endedAt   DateTime? // null while the timer is running
+  hours     Float? // computed on stop, or set directly for manual entries
+  note      String?
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, endedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Files & approvals (Phase 4)
+// ---------------------------------------------------------------------------
+
+model File {
+  id           String         @id @default(cuid())
+  projectId    String
+  name         String
+  version      Int            @default(1) // same filename stacks v2, v3…
+  url          String // Supabase Storage path
+  size         Int
+  uploadedById String
+  isFinal      Boolean        @default(false) // Admin-only flag per deliverable
+  approvalStatus  ApprovalStatus @default(NONE)
+  approvalComment String?
+
+  createdAt DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+
+  @@index([projectId, name])
+}
+
+// ---------------------------------------------------------------------------
+// My Day (Phase 3)
+// ---------------------------------------------------------------------------
+
+model TodoItem {
+  id              String     @id @default(cuid())
+  userId          String
+  title           String
+  bucket          TodoBucket @default(TODAY)
+  linkedTaskId    String?
+  isTop3          Boolean    @default(false)
+  rolledOverCount Int        @default(0)
+  done            Boolean    @default(false)
+  date            DateTime // the day this todo belongs to (Asia/Kolkata)
+  order           Float      @default(0)
+
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedTask Task? @relation(fields: [linkedTaskId], references: [id])
+
+  @@index([userId, date])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications & audit log
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id      String    @id @default(cuid())
+  userId  String
+  type    String // e.g. TASK_ASSIGNED, MENTION, STATUS_CHANGE, DEADLINE_24H…
+  payload Json
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model ActivityLog {
+  id         String @id @default(cuid())
+  actorId    String
+  action     String // CREATE | UPDATE | DELETE | RESTORE | STATUS_CHANGE…
+  entityType String // Project | Task | Client | User | File…
+  entityId   String
+  meta       Json?
+
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

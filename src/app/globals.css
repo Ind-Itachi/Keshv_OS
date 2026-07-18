@@ -1,0 +1,129 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ==========================================================================
+   KESHV BRAND SYSTEM
+   Canvas White base · Graphite text · Crimson primary · Cobalt headers ·
+   Copper warnings/badges.
+
+   Per-workspace theming: the <html> element carries data-workspace="KESHV"
+   or data-workspace="SLATE"; each theme remaps --primary and friends so the
+   whole UI (buttons, rings, sidebar accents) re-brands instantly.
+   ========================================================================== */
+
+:root {
+  /* --- Brand palette ------------------------------------------------------ */
+  --canvas-white: #faf9f6;
+  --graphite: #26282b;
+  --graphite-soft: #55585e;
+  --crimson: #c41e3a;
+  --crimson-deep: #a01830;
+  --cobalt: #1849a9;
+  --cobalt-deep: #123a88;
+  --copper: #b87333;
+  --copper-soft: #f4e5d3;
+
+  /* --- shadcn/ui tokens (default = KESHV theme) --------------------------- */
+  --radius: 0.625rem;
+  --background: var(--canvas-white);
+  --foreground: var(--graphite);
+  --card: #ffffff;
+  --card-foreground: var(--graphite);
+  --popover: #ffffff;
+  --popover-foreground: var(--graphite);
+  --primary: var(--crimson);
+  --primary-hover: var(--crimson-deep);
+  --primary-foreground: #ffffff;
+  --secondary: #f0eeea;
+  --secondary-foreground: var(--graphite);
+  --muted: #f0eeea;
+  --muted-foreground: var(--graphite-soft);
+  --accent: #f4f2ee;
+  --accent-foreground: var(--graphite);
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --border: #e5e2db;
+  --input: #e5e2db;
+  --ring: var(--crimson);
+
+  /* --- Semantic extras ---------------------------------------------------- */
+  --heading: var(--cobalt); /* Cobalt headers per brand system */
+  --warning: var(--copper);
+  --warning-soft: var(--copper-soft);
+  --success: #1a7f4e;
+  --health-green: #22a06b;
+  --health-amber: #d97708;
+  --health-red: #d92d20;
+
+  /* --- Sidebar ------------------------------------------------------------ */
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--graphite);
+  --sidebar-accent: #f4f2ee;
+  --sidebar-border: #e5e2db;
+}
+
+/* SLATE workspace re-theme: Cobalt-led identity */
+[data-workspace="SLATE"] {
+  --primary: var(--cobalt);
+  --primary-hover: var(--cobalt-deep);
+  --ring: var(--cobalt);
+  --heading: var(--graphite);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-heading: var(--heading);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-success: var(--success);
+  --color-health-green: var(--health-green);
+  --color-health-amber: var(--health-amber);
+  --color-health-red: var(--health-red);
+  --color-crimson: var(--crimson);
+  --color-cobalt: var(--cobalt);
+  --color-copper: var(--copper);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  h1,
+  h2 {
+    @apply text-heading font-semibold tracking-tight;
+  }
+}
